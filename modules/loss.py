@@ -8,8 +8,8 @@ class MyBinaryCrossEntropy(object):
 
     def __call__(self, pred_seg, seg_gt):
         """
-        :param pred_seg: [B, C=1, H, W]
-        :param seg_gt: [B, C=1, H, W]
+        :param pred_seg: [B, C=3, H, W]
+        :param seg_gt: [B, C=3, H, W]
         """
         # get the probability by sigmoid. Use BCEloss.
         ######################## WRITE YOUR ANSWER BELOW ########################

@@ -110,7 +110,7 @@ class Solver(object):
 
             epoch_avg_loss = epoch_loss_acc / epoch_size
             # set tensorboard
-            writer.add_scalar('Train Loss', epoch_avg_loss, epoch_size)
+            writer.add_scalar('Train Loss', epoch_avg_loss, epoch)
             pbar_train.set_postfix(epoch_avg_loss=epoch_avg_loss)
             train_loss_epochs.append(epoch_avg_loss)
 
@@ -127,11 +127,12 @@ class Solver(object):
                 val_loss_epochs.append(val_avg_loss)
                 # output validation image
                 if (epoch % 5 == 0):
-                    seg_gt_overlay, pred_overlay = self.get_img(10, val_loader)
+                    seg_gt_overlay, pred_overlay = self.get_img(0, val_loader)
                     writer.add_image('seg_gt_overlay',
-                                     seg_gt_overlay, epoch_size)
-                    writer.add_image('pred_overlay', pred_overlay, epoch_size)
-                writer.add_scalar('Validation Loss', val_avg_loss, epoch_size)
+                                     seg_gt_overlay, epoch, dataformats="HWC")
+                    writer.add_image('pred_overlay', pred_overlay,
+                                     epoch,  dataformats="HWC")
+                writer.add_scalar('Validation Loss', val_avg_loss, epoch)
 
         writer.close()
         pbar_train.close()
@@ -228,11 +229,11 @@ class Solver(object):
             image, seg_gt = batch
 
             image = self.to_device(image)  # [B, C=1, H, W]
-            seg_gt = self.to_device(seg_gt)  # [B, C=3, H, W]
+            seg_gt = self.to_device(seg_gt)  # [B, C=1, H, W]
             B, C, H, W = image.shape
 
             self.model.eval()
-            pred_seg = self.model(image)  # [B, C=3, H, W]
+            pred_seg = self.model(image)  # [B, C=1, H, W]
 
             pred_seg_probs = torch.sigmoid(pred_seg)
             pred_seg_mask = pred_seg_probs > 0.5  # default threshoulding: 0.5
@@ -242,24 +243,24 @@ class Solver(object):
             image = self.to_numpy(image[batch_offset, 0, :, :])
             seg_gt_RV = self.to_numpy(seg_gt[batch_offset, 0, :, :])
             seg_gt_MYO = self.to_numpy(seg_gt[batch_offset, 1, :, :])
-            seg_gt_LV = self.to_numpy(seg_gt[batch_offset, 3, :, :])
+            seg_gt_LV = self.to_numpy(seg_gt[batch_offset, 2, :, :])
             pred_seg_mask_RV = self.to_numpy(
-                pred_seg_mask[batch_offset, 1, :, :])
+                pred_seg_mask[batch_offset, 0, :, :])
             pred_seg_mask_MYO = self.to_numpy(
                 pred_seg_mask[batch_offset, 1, :, :])
             pred_seg_mask_LV = self.to_numpy(
-                pred_seg_mask[batch_offset, 1, :, :])
+                pred_seg_mask[batch_offset, 2, :, :])
 
-        seg_gt_RV = (seg_gt_RV > 0.5) * 1.0
-        seg_gt_MYO = (seg_gt_MYO > 0.5) * 1.0
-        seg_gt_LV = (seg_gt_LV > 0.5) * 1.0
+            seg_gt_RV = (seg_gt_RV > 0.5) * 1.0
+            seg_gt_MYO = (seg_gt_MYO > 0.5) * 1.0
+            seg_gt_LV = (seg_gt_LV > 0.5) * 1.0
 
-        seg_gt_overlay = image_mask_overlay(image, seg_gt_RV)
-        seg_gt_overlay = image_mask_overlay(seg_gt_overlay, seg_gt_MYO)
-        seg_gt_overlay = image_mask_overlay(seg_gt_overlay, seg_gt_LV)
-        pred_overlay = image_mask_overlay(image, pred_seg_mask_RV)
-        pred_overlay = image_mask_overlay(pred_overlay, pred_seg_mask_MYO)
-        pred_overlay = image_mask_overlay(pred_overlay, pred_seg_mask_LV)
+            seg_gt = seg_gt_RV * 85 + seg_gt_MYO * 175 + seg_gt_LV * 255
+            pred_seg_mask = pred_seg_mask_RV * 85 + \
+                pred_seg_mask_MYO * 175 + pred_seg_mask_LV * 255
+
+            seg_gt_overlay = image_mask_overlay(image, seg_gt)
+            pred_overlay = image_mask_overlay(image, pred_seg_mask)
         return seg_gt_overlay, pred_overlay
 
 
@@ -340,7 +341,8 @@ class Lab2Solver(Solver):
             seg_gt_LV = (seg_gt_LV > 0.5) * 1.0
 
             seg_gt = seg_gt_RV * 85 + seg_gt_MYO * 175 + seg_gt_LV * 255
-            pred_seg_mask = pred_seg_mask_RV * 85 + pred_seg_mask_MYO * 175 + pred_seg_mask_LV * 255
+            pred_seg_mask = pred_seg_mask_RV * 85 + \
+                pred_seg_mask_MYO * 175 + pred_seg_mask_LV * 255
 
             seg_gt_overlay = image_mask_overlay(image, seg_gt)
             pred_overlay = image_mask_overlay(image, pred_seg_mask)
