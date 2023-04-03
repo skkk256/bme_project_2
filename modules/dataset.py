@@ -1,22 +1,26 @@
 from torchvision import transforms as T
 from torchvision.transforms import functional as F
 from torch.utils import data
+import torch
 import os
 import random
+import numpy as np
 from PIL import Image
+
+from .utils import mask_to_onehot
 
 
 def get_loader(
-    image_root_path, batch_size, num_workers=0, mode="train", augmentation_prob=0.4
+    image_root_path, batch_size, palette=[[85], [170], [255]], num_workers=0, mode="train", augmentation_prob=0.4
 ):
     """Builds and returns Dataloader."""
     if mode == "test" or mode == "val":
         dataset = Test_ImageFolder(
-            root=image_root_path, mode=mode, augmentation_prob=augmentation_prob
+            root=image_root_path, palette=palette, mode=mode, augmentation_prob=augmentation_prob
         )
     else:
         dataset = ImageFolder(
-            root=image_root_path, mode=mode, augmentation_prob=augmentation_prob
+            root=image_root_path, palette=palette, mode=mode, augmentation_prob=augmentation_prob
         )
 
     data_loader = data.DataLoader(
@@ -30,10 +34,11 @@ def get_loader(
 
 
 class ImageFolder(data.Dataset):
-    def __init__(self, root, mode="train", augmentation_prob=0.4):
+    def __init__(self, root, palette=[[85], [170], [255]], mode="train", augmentation_prob=0.4):
         assert mode in {"train"}
         """Initializes image paths and preprocessing module."""
         self.root = root
+        self.palette = palette
 
         # GT : Ground Truth
         self.GT_dir = os.path.join(root, "GT/")
@@ -63,6 +68,12 @@ class ImageFolder(data.Dataset):
 
         image = Image.open(image_path)
         seg_gt = Image.open(GT_path)
+        # print(f"the size of img and gt init is {image.size} and {seg_gt.size}")
+        seg_gt = np.expand_dims(seg_gt, axis=0)
+        # print(f"the size of img and gt after expand is {image.size} and {seg_gt.size}")
+        seg_gt = mask_to_onehot(seg_gt, self.palette)
+        # print(f"the size of img and gt is {image.shape} and {seg_gt.shape}")
+        seg_gt = [Image.fromarray(np.uint8(seg_gt[i] * 255)) for i in range(3)]
 
         aspect_ratio = image.size[1] / image.size[0]
 
@@ -81,12 +92,12 @@ class ImageFolder(data.Dataset):
                 aspect_ratio = 1 / aspect_ratio
 
             Transform.append(T.RandomRotation(
-                [RotationDegree, RotationDegree]))
+                (RotationDegree, RotationDegree)))
 
             # use randint and T.RandomRotation to rotate the image by (-10,10) degrees.
 
             RotationRange = random.randint(-10, 10)
-            Transform.append(T.RandomRotation([RotationRange, RotationDegree]))
+            Transform.append(T.RandomRotation((RotationRange, RotationRange)))
 
             CropRange = random.randint(250, 270)
             Transform.append(T.CenterCrop(
@@ -97,8 +108,7 @@ class ImageFolder(data.Dataset):
 
             # Be careful: when you do geometric transformation on the original image,you need to do
             # the same transform on the gt, to keep the consistency.
-
-            seg_gt = Transform(seg_gt)
+            seg_gt = [Transform(seg_gt[i]) for i in range(3)]
 
             ShiftRange_left = random.randint(0, 20)
             ShiftRange_upper = random.randint(0, 20)
@@ -112,22 +122,22 @@ class ImageFolder(data.Dataset):
                     ShiftRange_lower,
                 )
             )
-            seg_gt = seg_gt.crop(
+            seg_gt = [seg_gt[i].crop(
                 box=(
                     ShiftRange_left,
                     ShiftRange_upper,
                     ShiftRange_right,
                     ShiftRange_lower,
                 )
-            )
+            ) for i in range(3)]
 
             if random.random() < 0.5:
                 image = F.hflip(image)
-                seg_gt = F.hflip(seg_gt)
+                seg_gt = [F.hflip(seg_gt[i]) for i in range(3)]
 
             if random.random() < 0.5:
                 image = F.vflip(image)
-                seg_gt = F.vflip(seg_gt)
+                seg_gt = [F.vflip(seg_gt[i]) for i in range(3)]
 
             # use T.ColorJitter to do color transform here. You can't change the color
             # of gt! Set brightness=0.2, contrast=0.2, hue=0.02.
@@ -146,8 +156,8 @@ class ImageFolder(data.Dataset):
         Transform = T.Compose(Transform)
 
         image = Transform(image)
-        seg_gt = Transform(seg_gt)
-
+        seg_gt = [Transform(seg_gt[i]) for i in range(3)]
+        seg_gt = torch.cat([seg_gt[0], seg_gt[1], seg_gt[2]], dim=0)
 
         Norm_ = T.Normalize((0.5), (0.5))
         image = Norm_(image)
@@ -160,10 +170,11 @@ class ImageFolder(data.Dataset):
 
 
 class Test_ImageFolder(data.Dataset):
-    def __init__(self, root, mode="train", augmentation_prob=0.4):
+    def __init__(self, root, mode="train", palette=[[85], [170], [255]], augmentation_prob=0.4):
         """Initializes image paths and preprocessing module."""
         assert mode in {"val", "test"}
         self.root = root
+        self.palette = palette
 
         self.GT_dir = os.path.join(root, "GT/")
         self.image_names = os.listdir(self.GT_dir)
@@ -191,8 +202,12 @@ class Test_ImageFolder(data.Dataset):
 
         image = Image.open(image_path)
         seg_gt = Image.open(GT_path)
-
-        image = Image.open(image_path)
+        # print(f"the size of img and gt init is {image.size} and {seg_gt.size}")
+        seg_gt = np.expand_dims(seg_gt, axis=0)
+        # print(f"the size of img and gt after expand is {image.size} and {seg_gt.size}")
+        seg_gt = mask_to_onehot(seg_gt, self.palette)
+        # print(f"the size of img and gt is {image.shape} and {seg_gt.shape}")
+        seg_gt = [Image.fromarray(np.uint8(seg_gt[i] * 255)) for i in range(3)]
 
         aspect_ratio = image.size[1] / image.size[0]
 
@@ -210,7 +225,8 @@ class Test_ImageFolder(data.Dataset):
 
         image = Transform(image)
 
-        seg_gt = Transform(seg_gt)
+        seg_gt = [Transform(seg_gt[i]) for i in range(3)]
+        seg_gt = torch.cat([seg_gt[0], seg_gt[1], seg_gt[2]], dim=0)
         Norm_ = T.Normalize((0.5), (0.5))
         image = Norm_(image)
         return image, seg_gt

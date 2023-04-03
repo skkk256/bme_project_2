@@ -10,6 +10,34 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from skimage.color import rgb2gray
 from skimage.metrics import structural_similarity
 
+######################################################
+
+
+def mask_to_onehot(mask, palette):
+    """
+    Converts a segmentation mask (C, H, W) to (K, H, W) where the last dim is a one
+    hot encoding vector, C is usually 1 or 3, and K is the number of class.
+    """
+    semantic_map = []
+    for colour in palette:
+        equality = np.equal(mask, colour)
+        class_map = np.all(equality, axis=0)
+        semantic_map.append(class_map)
+    semantic_map = np.stack(semantic_map, axis=0).astype(np.float32)
+    return semantic_map
+
+
+def onehot_to_mask(mask, palette):
+    """
+    Converts a mask (K, H, W) to (C, H, W)
+    """
+    x = np.argmax(mask, axis=0)
+    colour_codes = np.array(palette)
+    x = np.uint8(colour_codes[x.astype(np.uint8)])
+    return x
+
+######################################################
+
 
 def plot_loss(loss):
     plt.figure()
@@ -33,9 +61,10 @@ def imgshow(im, cmap=None, rgb_axis=None, dpi=100, figsize=(6.4, 4.8)):
     plt.close('all')
 
 
-def imsshow(imgs, titles=None, num_col=5, dpi=100, cmap=None, is_colorbar=False, is_ticks=False):
+def imsshow(imgs, titles=None, num_col=5, dpi=100, cmap=None, is_colorbar=False, is_ticks=False, ylim : list=[]):
     '''
     assume imgs's shape is (Nslice, Nx, Ny)
+    ylim is [y1, y2]] or default []
     '''
     num_imgs = len(imgs)
     num_row = math.ceil(num_imgs / num_col)
@@ -50,11 +79,14 @@ def imsshow(imgs, titles=None, num_col=5, dpi=100, cmap=None, is_colorbar=False,
         if titles:
             plt.title(titles[i])
         if is_colorbar:
-            cax = fig.add_axes([ax.get_position().x1 + 0.01, ax.get_position().y0, 0.01, ax.get_position().height])
+            cax = fig.add_axes(
+                [ax.get_position().x1 + 0.01, ax.get_position().y0, 0.01, ax.get_position().height])
             plt.colorbar(im, cax=cax)
         if not is_ticks:
             ax.set_xticks([])
             ax.set_yticks([])
+        if ylim != []:
+            plt.ylim(ylim[0], ylim[1])
     plt.show()
     plt.close('all')
 
@@ -74,10 +106,9 @@ def image_mask_overlay(image, mask) -> np.ndarray:
         fig.savefig(io_buf, format='raw', dpi=dpi)
         io_buf.seek(0)
         img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
-                            newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
+                             newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
         io_buf.close()
         return img_arr
-
 
     H, W = image.shape
     dpi = H
@@ -246,13 +277,17 @@ def compute_psnr(reconstructed_im, target_im, peak='normalized', is_minmax=False
 
     if isinstance(target_im, np.ndarray):
         max_intensity = 255 if target_im.dtype == np.uint8 else 1.0
-        max_intensity = np.max(target_im).item() if peak == 'max' else max_intensity
-        psnr = 20 * math.log10(max_intensity) - 10 * np.log10(compute_mse(reconstructed_im, target_im) + eps)
+        max_intensity = np.max(target_im).item(
+        ) if peak == 'max' else max_intensity
+        psnr = 20 * math.log10(max_intensity) - 10 * \
+            np.log10(compute_mse(reconstructed_im, target_im) + eps)
 
     elif isinstance(target_im, torch.Tensor):
         max_intensity = 255 if target_im.dtype == torch.uint8 else 1.0
-        max_intensity = torch.max(target_im).item() if peak == 'max' else max_intensity
-        psnr = 20 * math.log10(max_intensity) - 10 * torch.log10(compute_mse(reconstructed_im, target_im) + eps)
+        max_intensity = torch.max(target_im).item(
+        ) if peak == 'max' else max_intensity
+        psnr = 20 * math.log10(max_intensity) - 10 * \
+            torch.log10(compute_mse(reconstructed_im, target_im) + eps)
 
     else:
         raise RuntimeError(
@@ -280,14 +315,14 @@ def compute_ssim(reconstructed_im, target_im, is_minmax=False):
         raise RuntimeError(
             'Unsupported object type'
         )
-    
+
     eps = 1e-8  # to avoid math error in log(x) when x=0
 
     if is_minmax:
         reconstructed_im = minmax_normalize(reconstructed_im, eps)
         target_im = minmax_normalize(target_im, eps)
-    
-    ssim_value = structural_similarity(target_im, reconstructed_im, \
-        gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
+
+    ssim_value = structural_similarity(target_im, reconstructed_im,
+                                       gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
 
     return ssim_value
