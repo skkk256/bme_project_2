@@ -68,12 +68,12 @@ class ImageFolder(data.Dataset):
 
         image = Image.open(image_path)
         seg_gt = Image.open(GT_path)
-        # print(f"the size of img and gt init is {image.size} and {seg_gt.size}")
-        seg_gt = np.expand_dims(seg_gt, axis=0)
-        # print(f"the size of img and gt after expand is {image.size} and {seg_gt.size}")
-        seg_gt = mask_to_onehot(seg_gt, self.palette)
-        # print(f"the size of img and gt is {image.shape} and {seg_gt.shape}")
-        seg_gt = [Image.fromarray(np.uint8(seg_gt[i] * 255)) for i in range(3)]
+        # # print(f"the size of img and gt init is {image.size} and {seg_gt.size}")
+        # seg_gt = np.expand_dims(seg_gt, axis=0)
+        # # print(f"the size of img and gt after expand is {image.size} and {seg_gt.size}")
+        # seg_gt = mask_to_onehot(seg_gt, self.palette)
+        # # print(f"the size of img and gt is {image.shape} and {seg_gt.shape}")
+        # seg_gt = [Image.fromarray(np.uint8(seg_gt[i] * 255)) for i in range(3)]
 
         aspect_ratio = image.size[1] / image.size[0]
 
@@ -108,7 +108,7 @@ class ImageFolder(data.Dataset):
 
             # Be careful: when you do geometric transformation on the original image,you need to do
             # the same transform on the gt, to keep the consistency.
-            seg_gt = [Transform(seg_gt[i]) for i in range(3)]
+            seg_gt = Transform(seg_gt)
 
             ShiftRange_left = random.randint(0, 20)
             ShiftRange_upper = random.randint(0, 20)
@@ -122,22 +122,22 @@ class ImageFolder(data.Dataset):
                     ShiftRange_lower,
                 )
             )
-            seg_gt = [seg_gt[i].crop(
+            seg_gt = seg_gt.crop(
                 box=(
                     ShiftRange_left,
                     ShiftRange_upper,
                     ShiftRange_right,
                     ShiftRange_lower,
                 )
-            ) for i in range(3)]
+            )
 
             if random.random() < 0.5:
                 image = F.hflip(image)
-                seg_gt = [F.hflip(seg_gt[i]) for i in range(3)]
+                seg_gt = F.hflip(seg_gt)
 
             if random.random() < 0.5:
                 image = F.vflip(image)
-                seg_gt = [F.vflip(seg_gt[i]) for i in range(3)]
+                seg_gt = F.vflip(seg_gt)
 
             # use T.ColorJitter to do color transform here. You can't change the color
             # of gt! Set brightness=0.2, contrast=0.2, hue=0.02.
@@ -152,12 +152,23 @@ class ImageFolder(data.Dataset):
             T.Resize((int(256 * aspect_ratio) -
                      int(256 * aspect_ratio) % 16, 256))
         )
-        Transform.append(T.ToTensor())
+        # Transform.append(T.ToTensor())
         Transform = T.Compose(Transform)
 
         image = Transform(image)
-        seg_gt = [Transform(seg_gt[i]) for i in range(3)]
-        seg_gt = torch.cat([seg_gt[0], seg_gt[1], seg_gt[2]], dim=0)
+        seg_gt = Transform(seg_gt)
+        # seg_gt = torch.cat([seg_gt[0], seg_gt[1], seg_gt[2]], dim=0)
+        # print(f"the size of img and gt is {image.size} and {seg_gt.size}")
+
+        seg_gt = np.expand_dims(seg_gt, axis=-1)
+        # print(f"the size of img and gt after expand is {image.size} and {seg_gt.shape}")
+        seg_gt = mask_to_onehot(seg_gt, self.palette)[:, :, 2]
+        # print(f"the size of img and gt after mask is {image.size} and {seg_gt.shape}")
+        # # print(f"the size of img and gt is {image.shape} and {seg_gt.shape}")
+
+        tensor_trans = T.ToTensor()
+        seg_gt = tensor_trans(seg_gt)
+        image = tensor_trans(image)
 
         Norm_ = T.Normalize((0.5), (0.5))
         image = Norm_(image)
@@ -202,12 +213,12 @@ class Test_ImageFolder(data.Dataset):
 
         image = Image.open(image_path)
         seg_gt = Image.open(GT_path)
-        # print(f"the size of img and gt init is {image.size} and {seg_gt.size}")
-        seg_gt = np.expand_dims(seg_gt, axis=0)
-        # print(f"the size of img and gt after expand is {image.size} and {seg_gt.size}")
-        seg_gt = mask_to_onehot(seg_gt, self.palette)
-        # print(f"the size of img and gt is {image.shape} and {seg_gt.shape}")
-        seg_gt = [Image.fromarray(np.uint8(seg_gt[i] * 255)) for i in range(3)]
+        # # print(f"the size of img and gt init is {image.size} and {seg_gt.size}")
+        # seg_gt = np.expand_dims(seg_gt, axis=0)
+        # # print(f"the size of img and gt after expand is {image.size} and {seg_gt.size}")
+        # seg_gt = mask_to_onehot(seg_gt, self.palette)
+        # # print(f"the size of img and gt is {image.shape} and {seg_gt.shape}")
+        # seg_gt = [Image.fromarray(np.uint8(seg_gt[i] * 255)) for i in range(3)]
 
         aspect_ratio = image.size[1] / image.size[0]
 
@@ -218,15 +229,25 @@ class Test_ImageFolder(data.Dataset):
 
         Transform.append(
             T.Resize((int(256 * aspect_ratio) -
-                     int(256 * aspect_ratio) % 16, 256))
+                     int(256 * aspect_ratio) % 16, 256,))
         )
-        Transform.append(T.ToTensor())
+        # Transform.append(T.ToTensor())
         Transform = T.Compose(Transform)
 
         image = Transform(image)
+        seg_gt = Transform(seg_gt)
+        # seg_gt = torch.cat([seg_gt[0], seg_gt[1], seg_gt[2]], dim=0)
 
-        seg_gt = [Transform(seg_gt[i]) for i in range(3)]
-        seg_gt = torch.cat([seg_gt[0], seg_gt[1], seg_gt[2]], dim=0)
+        # split gt into 3 channel
+        seg_gt = np.expand_dims(seg_gt, axis=-1)
+        # print(f"the size of img and gt after expand is {image.size} and {seg_gt.shape}")
+        seg_gt = mask_to_onehot(seg_gt, self.palette)[:, :, 2]
+
+        # transform image and gt to tensor
+        tensor_trans = T.ToTensor()
+        seg_gt = tensor_trans(seg_gt)
+        image = tensor_trans(image)
+
         Norm_ = T.Normalize((0.5), (0.5))
         image = Norm_(image)
         return image, seg_gt

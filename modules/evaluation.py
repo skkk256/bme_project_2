@@ -1,6 +1,4 @@
-
 import torch
-
 
 # SR : Segmentation Result
 # GT : Ground Truth

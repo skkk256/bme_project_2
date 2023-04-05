@@ -3,6 +3,8 @@ BME1301
 DO NOT MODIFY anything in this file.
 """
 import os
+from os.path import join
+import time
 import itertools
 import statistics
 from typing import Callable
@@ -19,11 +21,10 @@ import torchvision
 from torch import nn
 from torch.utils import data as Data
 
-from .utils import imgshow, imsshow, image_mask_overlay
+from .utils import imgshow, imsshow, image_mask_overlay, onehot_to_mask
 from .evaluation import get_accuracy, get_sensitivity, get_specificity, get_precision, get_F1, get_JS, get_DC
-from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter('./log')
+from torch.utils.tensorboard import SummaryWriter
 
 
 class Solver(object):
@@ -74,6 +75,9 @@ class Solver(object):
               val_loader=None,
               is_plot=True) -> dict:
         torch.cuda.empty_cache()
+        timestamp = time.strftime("%m-%d_%H-%M-%S", time.localtime())
+        os.mkdir(join('./log', timestamp))
+        writer = SummaryWriter(join('./log', timestamp))
 
         val_loss_epochs = []
         train_loss_epochs = []
@@ -87,7 +91,7 @@ class Solver(object):
                 desc=f'[Train] Epoch {epoch + 1}/{epochs}')
             epoch_loss_acc = 0
             epoch_size = 0
-            for batch_idx, batch in enumerate(data_loader):
+            for batch in data_loader:
                 self.model.train()
                 # forward
                 step_dict = self._step(batch)
@@ -241,26 +245,34 @@ class Solver(object):
                         [None, ...], seg_gt[batch_offset, ...][None, ...])
 
             image = self.to_numpy(image[batch_offset, 0, :, :])
-            seg_gt_RV = self.to_numpy(seg_gt[batch_offset, 0, :, :])
-            seg_gt_MYO = self.to_numpy(seg_gt[batch_offset, 1, :, :])
-            seg_gt_LV = self.to_numpy(seg_gt[batch_offset, 2, :, :])
-            pred_seg_mask_RV = self.to_numpy(
+            seg_gt = self.to_numpy(seg_gt[batch_offset, 0, :, :])
+            # seg_gt_MYO = self.to_numpy(seg_gt[batch_offset, 1, :, :])
+            # seg_gt_LV = self.to_numpy(seg_gt[batch_offset, 2, :, :])
+            pred_seg_mask = self.to_numpy(
                 pred_seg_mask[batch_offset, 0, :, :])
-            pred_seg_mask_MYO = self.to_numpy(
-                pred_seg_mask[batch_offset, 1, :, :])
-            pred_seg_mask_LV = self.to_numpy(
-                pred_seg_mask[batch_offset, 2, :, :])
+            # pred_seg_mask_MYO = self.to_numpy(
+            #     pred_seg_mask[batch_offset, 1, :, :])
+            # pred_seg_mask_LV = self.to_numpy(
+            #     pred_seg_mask[batch_offset, 2, :, :])
 
-            seg_gt_RV = (seg_gt_RV > 0.5) * 1.0
-            seg_gt_MYO = (seg_gt_MYO > 0.5) * 1.0
-            seg_gt_LV = (seg_gt_LV > 0.5) * 1.0
+            # seg_gt_RV = (seg_gt_RV > 0.5) * 1.0
+            # seg_gt_MYO = (seg_gt_MYO > 0.5) * 1.0
+            # seg_gt_LV = (seg_gt_LV > 0.5) * 1.0
 
-            seg_gt = seg_gt_RV * 85 + seg_gt_MYO * 175 + seg_gt_LV * 255
-            pred_seg_mask = pred_seg_mask_RV * 85 + \
-                pred_seg_mask_MYO * 175 + pred_seg_mask_LV * 255
+            # seg_gt = (seg_gt_RV * 85 + seg_gt_MYO * 170 + seg_gt_LV * 255)/255
+            # result = np.zeros((256, 256))
 
+            # pal = [85, 170, 255]
+            # for i in range(256):
+            #     for j in range(256):
+            #         value = np.array([pred_seg_mask_RV[i, j], pred_seg_mask_MYO[i,j], pred_seg_mask_LV[i,j]])
+            #         result[i, j] = pal[np.argmax(value)] * value[np.argmax(value)]
+            # pred_seg_mask = result/255
+
+            # pred_seg_mask = result
             seg_gt_overlay = image_mask_overlay(image, seg_gt)
             pred_overlay = image_mask_overlay(image, pred_seg_mask)
+
         return seg_gt_overlay, pred_overlay
 
 
@@ -326,23 +338,33 @@ class Lab2Solver(Solver):
                         [None, ...], seg_gt[batch_offset, ...][None, ...])
 
             image = self.to_numpy(image[batch_offset, 0, :, :])
-            seg_gt_RV = self.to_numpy(seg_gt[batch_offset, 0, :, :])
-            seg_gt_MYO = self.to_numpy(seg_gt[batch_offset, 1, :, :])
-            seg_gt_LV = self.to_numpy(seg_gt[batch_offset, 2, :, :])
-            pred_seg_mask_RV = self.to_numpy(
+            seg_gt = self.to_numpy(seg_gt[batch_offset, 0, :, :])
+            # seg_gt_MYO = self.to_numpy(seg_gt[batch_offset, 1, :, :])
+            # seg_gt_LV = self.to_numpy(seg_gt[batch_offset, 2, :, :])
+            pred_seg_mask = self.to_numpy(
                 pred_seg_mask[batch_offset, 0, :, :])
-            pred_seg_mask_MYO = self.to_numpy(
-                pred_seg_mask[batch_offset, 1, :, :])
-            pred_seg_mask_LV = self.to_numpy(
-                pred_seg_mask[batch_offset, 2, :, :])
+            # pred_seg_mask_MYO = self.to_numpy(
+            #     pred_seg_mask[batch_offset, 1, :, :])
+            # pred_seg_mask_LV = self.to_numpy(
+            #     pred_seg_mask[batch_offset, 2, :, :])
 
-            seg_gt_RV = (seg_gt_RV > 0.5) * 1.0
-            seg_gt_MYO = (seg_gt_MYO > 0.5) * 1.0
-            seg_gt_LV = (seg_gt_LV > 0.5) * 1.0
+            # seg_gt_RV = (seg_gt_RV > 0.5) * 1.0
+            # seg_gt_MYO = (seg_gt_MYO > 0.5) * 1.0
+            # seg_gt_LV = (seg_gt_LV > 0.5) * 1.0
 
-            seg_gt = seg_gt_RV * 85 + seg_gt_MYO * 175 + seg_gt_LV * 255
-            pred_seg_mask = pred_seg_mask_RV * 85 + \
-                pred_seg_mask_MYO * 175 + pred_seg_mask_LV * 255
+            # seg_gt = (seg_gt_RV * 85 + seg_gt_MYO * 170 + seg_gt_LV * 255)/255
+            # # pred_seg_mask = (pred_seg_mask_RV * 85 + \
+            # #     pred_seg_mask_MYO * 170 + pred_seg_mask_LV * 255)/255
+
+            # # max_values = np.maximum.reduce([pred_seg_mask_RV, pred_seg_mask_MYO, pred_seg_mask_LV])
+            # result = np.zeros((256,256))
+
+            # pal = [85, 170, 255]
+            # for i in range(256):
+            #     for j in range(256):
+            #         value = np.array([pred_seg_mask_RV[i, j], pred_seg_mask_MYO[i,j], pred_seg_mask_LV[i,j]])
+            #         result[i, j] = pal[np.argmax(value)] * value[np.argmax(value)]
+            # pred_seg_mask = result/255
 
             seg_gt_overlay = image_mask_overlay(image, seg_gt)
             pred_overlay = image_mask_overlay(image, pred_seg_mask)

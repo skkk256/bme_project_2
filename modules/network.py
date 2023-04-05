@@ -8,7 +8,6 @@ class DoubleConv(nn.Module):
         super().__init__()
 
         # use nn.Sequential(),BatchNorm2d,ReLU. Use padding to keep the size of image.
-        ######################## WRITE YOUR ANSWER BELOW ########################
         self.layers = nn.Sequential(
             nn.Conv2d(in_channels, out_channels,
                       kernel_size=3, padding=1, bias=False),
@@ -19,7 +18,6 @@ class DoubleConv(nn.Module):
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True)
         )
-        #########################################################################
 
     def forward(self, x):
         """
@@ -39,8 +37,8 @@ class Down(nn.Module):
         # use nn.Sequential,nn.MaxPool2d and DoubleConv defined by you.
         ######################## WRITE YOUR ANSWER BELOW ########################
         self.maxpool_conv = nn.Sequential(
-            DoubleConv(in_channels, out_channels),
-            nn.MaxPool2d(2)
+            nn.MaxPool2d(2),
+            DoubleConv(in_channels, out_channels)
         )
         #########################################################################
 
@@ -60,7 +58,7 @@ class Up(nn.Module):
         # use nn.ConvTranspose2d for upsampling.
         ######################## WRITE YOUR ANSWER BELOW ########################
         self.up = nn.ConvTranspose2d(
-            in_channels, out_channels, kernel_size=3, padding=1)
+            in_channels, in_channels // 2, kernel_size=2, stride=2)
         #########################################################################
         self.conv = DoubleConv(in_channels, out_channels)
 
