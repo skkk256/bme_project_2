@@ -81,7 +81,7 @@ class ImageFolder(data.Dataset):
 
         ResizeRange = random.randint(300, 320)
         Transform.append(
-            T.Resize((int(ResizeRange * aspect_ratio), ResizeRange)))
+            T.Resize((int(ResizeRange * aspect_ratio), ResizeRange), interpolation=F.InterpolationMode.NEAREST))
         p_transform = random.random()
 
         if (self.mode == "train") and p_transform <= self.augmentation_prob:
@@ -150,7 +150,7 @@ class ImageFolder(data.Dataset):
 
         Transform.append(
             T.Resize((int(256 * aspect_ratio) -
-                     int(256 * aspect_ratio) % 16, 256))
+                     int(256 * aspect_ratio) % 16, 256), interpolation=F.InterpolationMode.NEAREST)
         )
         # Transform.append(T.ToTensor())
         Transform = T.Compose(Transform)
@@ -162,7 +162,7 @@ class ImageFolder(data.Dataset):
 
         seg_gt = np.expand_dims(seg_gt, axis=-1)
         # print(f"the size of img and gt after expand is {image.size} and {seg_gt.shape}")
-        seg_gt = mask_to_onehot(seg_gt, self.palette)[:, :, 2]
+        seg_gt = mask_to_onehot(seg_gt, self.palette)
         # print(f"the size of img and gt after mask is {image.size} and {seg_gt.shape}")
         # # print(f"the size of img and gt is {image.shape} and {seg_gt.shape}")
 
@@ -225,11 +225,11 @@ class Test_ImageFolder(data.Dataset):
         Transform = []
         ResizeRange = random.randint(300, 320)
         Transform.append(
-            T.Resize((int(ResizeRange * aspect_ratio), ResizeRange)))
+            T.Resize((int(ResizeRange * aspect_ratio), ResizeRange), interpolation=F.InterpolationMode.NEAREST))
 
         Transform.append(
             T.Resize((int(256 * aspect_ratio) -
-                     int(256 * aspect_ratio) % 16, 256,))
+                     int(256 * aspect_ratio) % 16, 256), interpolation=F.InterpolationMode.NEAREST)
         )
         # Transform.append(T.ToTensor())
         Transform = T.Compose(Transform)
@@ -241,7 +241,7 @@ class Test_ImageFolder(data.Dataset):
         # split gt into 3 channel
         seg_gt = np.expand_dims(seg_gt, axis=-1)
         # print(f"the size of img and gt after expand is {image.size} and {seg_gt.shape}")
-        seg_gt = mask_to_onehot(seg_gt, self.palette)[:, :, 2]
+        seg_gt = mask_to_onehot(seg_gt, self.palette)
 
         # transform image and gt to tensor
         tensor_trans = T.ToTensor()
