@@ -22,7 +22,7 @@ from torch import nn
 from torch.utils import data as Data
 
 from .utils import imgshow, imsshow, image_mask_overlay, onehot_to_mask
-from .evaluation import get_accuracy, get_sensitivity, get_specificity, get_precision, get_F1, get_JS, get_DC
+from .evaluation import get_accuracy, get_sensitivity, get_specificity, get_precision, get_F1, get_JS, get_DC, get_DC_square
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -156,7 +156,6 @@ class Solver(object):
         plt.show()
         plt.close('all')
 
-
     def validate(self, data_loader, *, pbar=None, is_compute_metrics=True) -> float:
         """
         :param pbar: when pbar is specified, do not print average loss
@@ -197,7 +196,11 @@ class Solver(object):
             pbar.close()  # destroy newly created pbar
             print('=' * 30 + ' Measurements ' + '=' * 30)
             for k, v in metrics_acc.items():
-                print(f"[{k}] {v / size_acc}")
+                if k == "metric_avg_DiceCoefficient_square":
+                    print(
+                        f"[metric_avg_DiceCoefficient_sd] {v - step_dict['metric_avg_DiceCoefficient']}")
+                else:
+                    print(f"[{k}] {v / size_acc}")
         else:
             return val_avg_loss
 
@@ -267,8 +270,10 @@ class Solver(object):
             pal = [85, 170, 255]
             for i in range(256):
                 for j in range(256):
-                    value = np.array([pred_seg_mask_RV[i, j], pred_seg_mask_MYO[i,j], pred_seg_mask_LV[i,j]])
-                    result[i, j] = pal[np.argmax(value)] * value[np.argmax(value)]
+                    value = np.array(
+                        [pred_seg_mask_RV[i, j], pred_seg_mask_MYO[i, j], pred_seg_mask_LV[i, j]])
+                    result[i, j] = pal[np.argmax(
+                        value)] * value[np.argmax(value)]
             pred_seg_mask = result/255
 
             # pred_seg_mask = result
@@ -303,6 +308,7 @@ class Lab2Solver(Solver):
             F1 = get_F1(pred_seg_probs, seg_gt)
             JS = get_JS(pred_seg_probs, seg_gt)
             DC = get_DC(pred_seg_probs, seg_gt)
+            DC_SQUARE = get_DC_square(pred_seg_probs, seg_gt)
 
             step_dict['metric_avg_Sensitivity'] = SE
             step_dict['metric_avg_Specifity'] = SP
@@ -310,6 +316,7 @@ class Lab2Solver(Solver):
             step_dict['metric_avg_F1Score'] = F1
             step_dict['metric_avg_JaccardSimilarity'] = JS
             step_dict['metric_avg_DiceCoefficient'] = DC
+            step_dict['metric_avg_DiceCoefficient_square'] = DC_SQUARE
 
         return step_dict
 
@@ -359,13 +366,15 @@ class Lab2Solver(Solver):
             # #     pred_seg_mask_MYO * 170 + pred_seg_mask_LV * 255)/255
 
             # # max_values = np.maximum.reduce([pred_seg_mask_RV, pred_seg_mask_MYO, pred_seg_mask_LV])
-            result = np.zeros((256,256))
+            result = np.zeros((256, 256))
 
             pal = [85, 170, 255]
             for i in range(256):
                 for j in range(256):
-                    value = np.array([pred_seg_mask_RV[i, j], pred_seg_mask_MYO[i,j], pred_seg_mask_LV[i,j]])
-                    result[i, j] = pal[np.argmax(value)] * value[np.argmax(value)]
+                    value = np.array(
+                        [pred_seg_mask_RV[i, j], pred_seg_mask_MYO[i, j], pred_seg_mask_LV[i, j]])
+                    result[i, j] = pal[np.argmax(
+                        value)] * value[np.argmax(value)]
             pred_seg_mask = result/255
 
             seg_gt_overlay = image_mask_overlay(image, seg_gt)

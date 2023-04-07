@@ -3,6 +3,7 @@ import torch
 # SR : Segmentation Result
 # GT : Ground Truth
 
+
 def get_accuracy(SR, GT, threshold=0.5):
     SR = SR > threshold
     GT = GT == torch.max(GT)
@@ -95,8 +96,19 @@ def get_DC(SR, GT, threshold=0.5):
     SR = SR > threshold
     GT = GT == torch.max(GT)
 
-
-    Inter = torch.sum(((SR==1) & (GT==1)))
+    Inter = torch.sum(((SR == 1) & (GT == 1)))
     DC = float(2 * Inter) / (float(torch.sum(SR) + torch.sum(GT)) + 1e-6)
 
     return DC
+
+
+def get_DC_square(SR, GT, threshold=0.5):
+    # DC : Dice Coefficient
+    SR = SR > threshold
+    GT = GT == torch.max(GT)
+
+    Inter = torch.sum(((SR == 1) & (GT == 1)))
+    DC_SQUARE = float(
+        (float(2 * Inter) / (float(torch.sum(SR) + torch.sum(GT)) + 1e-6))**2)
+
+    return DC_SQUARE
