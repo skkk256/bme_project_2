@@ -69,7 +69,7 @@ class Up(nn.Module):
         H2, W2 = x2.shape[2:]
 
         # print('before padding:', x1.shape)
-
+        # temp = torch.clone(x1)
         # use F.pad to change the shape of x1.
         ######################## WRITE YOUR ANSWER BELOW ########################
         x1 = F.pad(x1, [
@@ -80,6 +80,7 @@ class Up(nn.Module):
                    ])
         #########################################################################
         # print('after padding: ',x1.shape)
+        # print(torch.equal(x1, temp))  # True
 
         x = torch.cat([x2, x1], dim=1)
         out = self.conv(x)

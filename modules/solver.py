@@ -71,13 +71,15 @@ class Solver(object):
     def train(self,
               epochs: int,
               data_loader,
+              log: bool,
               *,
               val_loader=None,
               is_plot=True) -> dict:
-        torch.cuda.empty_cache()
-        timestamp = time.strftime("%m-%d_%H-%M-%S", time.localtime())
-        os.mkdir(join('./log', timestamp))
-        writer = SummaryWriter(join('./log', timestamp))
+        if log:
+            torch.cuda.empty_cache()
+            timestamp = time.strftime("%m-%d_%H-%M-%S", time.localtime())
+            os.mkdir(join('./log', timestamp))
+            writer = SummaryWriter(join('./log', timestamp))
 
         val_loss_epochs = []
         train_loss_epochs = []
@@ -114,7 +116,8 @@ class Solver(object):
 
             epoch_avg_loss = epoch_loss_acc / epoch_size
             # set tensorboard
-            writer.add_scalar('Train Loss', epoch_avg_loss, epoch)
+            if log:
+                writer.add_scalar('Train Loss', epoch_avg_loss, epoch)
             pbar_train.set_postfix(epoch_avg_loss=epoch_avg_loss)
             train_loss_epochs.append(epoch_avg_loss)
 
@@ -132,13 +135,16 @@ class Solver(object):
                 # output validation image
                 if (epoch % 5 == 0):
                     seg_gt_overlay, pred_overlay = self.get_img(0, val_loader)
-                    writer.add_image('seg_gt_overlay',
-                                     seg_gt_overlay, epoch, dataformats="HWC")
-                    writer.add_image('pred_overlay', pred_overlay,
-                                     epoch,  dataformats="HWC")
-                writer.add_scalar('Validation Loss', val_avg_loss, epoch)
+                    if log:
+                        writer.add_image('seg_gt_overlay',
+                                        seg_gt_overlay, epoch, dataformats="HWC")
+                        writer.add_image('pred_overlay', pred_overlay,
+                                        epoch,  dataformats="HWC")
+                if log:
+                    writer.add_scalar('Validation Loss', val_avg_loss, epoch)
 
-        writer.close()
+        if log:
+            writer.close()
         pbar_train.close()
 
         if val_loader is not None:
@@ -337,6 +343,7 @@ class Lab2Solver(Solver):
             image = self.to_device(image)  # [B, C=1, H, W]
             seg_gt = self.to_device(seg_gt)  # [B, C=1, H, W]
             B, C, H, W = image.shape
+
 
             self.model.eval()
             pred_seg = self.model(image)  # [B, C=1, H, W]

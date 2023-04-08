@@ -62,24 +62,23 @@ class Up(nn.Module):
         #########################################################################
         self.conv = DoubleConv(in_channels, out_channels)
 
-    def forward(self, x1, x2):
+    def forward(self, x1):
 
         x1 = self.up(x1)
-        H1, W1 = x1.shape[2:]
-        H2, W2 = x2.shape[2:]
+        # H1, W1 = x1.shape[2:]
+        # H2, W2 = x2.shape[2:]
 
         # print('before padding:', x1.shape)
-
+        # temp = x1
         # use F.pad to change the shape of x1.
-        ######################## WRITE YOUR ANSWER BELOW ########################
-        x1 = F.pad(x1, [
-                   (W2-W1) // 2,
-                   (W2-W1) // 2,
-                   (H2-H1) // 2,
-                   (H2-H1) // 2
-                   ])
-        #########################################################################
-        # print('after padding: ',x1.shape)
+        # x1 = F.pad(x1, [
+        #            (W2-W1) // 2,
+        #            (W2-W1) // 2,
+        #            (H2-H1) // 2,
+        #            (H2-H1) // 2
+        #            ])
+        # print('after padding: ', x1.shape)
+        # print(torch.equal(x1, temp))  # True)
 
         # x = torch.cat([x2, x1], dim=1)
         out = self.conv(x1)
